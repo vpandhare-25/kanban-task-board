@@ -9,7 +9,7 @@ import {
   useSensors,
 } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
-import type { Task, TaskStatus, TeamMember } from '../types'
+import type { BoardLookups, Label, Task, TaskStatus, TeamMember } from '../types'
 import { COLUMNS } from '../types'
 import { useTasks } from '../hooks/useTasks'
 import { Column } from './Column'
@@ -19,7 +19,8 @@ import { StatusScreen } from './StatusScreen'
 import { TaskDetailPanel } from './TaskDetailPanel'
 import { TeamDialog } from './TeamDialog'
 import { AvatarStack } from './Avatar'
-import { useTeam } from '../hooks/useTeam'
+import { useLabels, useTeam } from '../hooks/useNamedList'
+import { LabelsDialog } from './LabelsDialog'
 
 export function Board({ userId }: { userId: string }) {
   const {
@@ -33,20 +34,34 @@ export function Board({ userId }: { userId: string }) {
     updateTask,
     moveTask,
     deleteTask,
-    setAssignees,
-    forgetMember,
+    setLinks,
+    forgetLink,
     setActionError,
   } = useTasks(userId)
   // Team errors show in the same toast as task errors.
   const { members, addMember, removeMember } = useTeam(userId, setActionError)
+  const { labels, addLabel, removeLabel } = useLabels(userId, setActionError)
   const [teamOpen, setTeamOpen] = useState(false)
+  const [labelsOpen, setLabelsOpen] = useState(false)
 
-  // Quick id -> member lookup for drawing avatars on cards.
-  const membersById = useMemo(() => new Map(members.map((m) => [m.id, m])), [members])
+  // Quick id -> object lookups for drawing avatars and label pills on cards.
+  const lookups: BoardLookups = useMemo(
+    () => ({
+      membersById: new Map(members.map((m) => [m.id, m])),
+      labelsById: new Map(labels.map((l) => [l.id, l])),
+    }),
+    [members, labels],
+  )
 
+  // When a member/label is deleted, the database drops its links; mirror that on screen.
   async function handleRemoveMember(member: TeamMember) {
     const ok = await removeMember(member)
-    if (ok) forgetMember(member.id)
+    if (ok) forgetLink('assignee_ids', member.id)
+    return ok
+  }
+  async function handleRemoveLabel(label: Label) {
+    const ok = await removeLabel(label)
+    if (ok) forgetLink('label_ids', label.id)
     return ok
   }
 
@@ -149,13 +164,13 @@ export function Board({ userId }: { userId: string }) {
                 tasks={byStatus[col.id]}
                 onAdd={setModalStatus}
                 onOpen={(t) => setOpenTaskId(t.id)}
-                membersById={membersById}
+                lookups={lookups}
               />
             ))}
           </main>
           {/* The floating card that follows the pointer while dragging. */}
           <DragOverlay dropAnimation={{ duration: 180, easing: 'cubic-bezier(0.2, 0, 0, 1)' }}>
-            {activeTask ? <TaskCardView task={activeTask} membersById={membersById} overlay /> : null}
+            {activeTask ? <TaskCardView task={activeTask} lookups={lookups} overlay /> : null}
           </DragOverlay>
         </DndContext>
       )}
@@ -176,8 +191,20 @@ export function Board({ userId }: { userId: string }) {
           onUpdate={updateTask}
           onDelete={deleteTask}
           members={members}
-          onSetAssignees={setAssignees}
+          labels={labels}
+          onSetLinks={setLinks}
           onManageTeam={() => setTeamOpen(true)}
+          onManageLabels={() => setLabelsOpen(true)}
+        />
+      )}
+
+      {labelsOpen && (
+        <LabelsDialog
+          labels={labels}
+          tasks={tasks}
+          onAdd={addLabel}
+          onRemove={handleRemoveLabel}
+          onClose={() => setLabelsOpen(false)}
         />
       )}
 

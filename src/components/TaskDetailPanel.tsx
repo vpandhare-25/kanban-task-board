@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
-import type { Task, TaskPriority, TaskStatus, TeamMember } from '../types'
+import type { Label, Task, TaskPriority, TaskStatus, TeamMember } from '../types'
 import { Avatar } from './Avatar'
+import { LabelPill } from './LabelPill'
+import type { LinkField } from '../hooks/useTasks'
 import { COLUMNS } from '../types'
 import type { TaskPatch } from '../hooks/useTasks'
 import { dueLabel, dueState } from '../lib/dates'
@@ -11,8 +13,10 @@ interface Props {
   onUpdate: (task: Task, patch: TaskPatch) => Promise<boolean>
   onDelete: (task: Task) => Promise<boolean>
   members: TeamMember[]
-  onSetAssignees: (task: Task, memberIds: string[]) => void
+  labels: Label[]
+  onSetLinks: (task: Task, field: LinkField, ids: string[]) => void
   onManageTeam: () => void
+  onManageLabels: () => void
 }
 
 /**
@@ -26,8 +30,10 @@ export function TaskDetailPanel({
   onUpdate,
   onDelete,
   members,
-  onSetAssignees,
+  labels,
+  onSetLinks,
   onManageTeam,
+  onManageLabels,
 }: Props) {
   const [title, setTitle] = useState(task.title)
   const [description, setDescription] = useState(task.description ?? '')
@@ -54,12 +60,11 @@ export function TaskDetailPanel({
     if (next !== task.description) onUpdate(task, { description: next })
   }
 
-  /** Clicking a member chip adds or removes them from the task. */
-  function toggleAssignee(memberId: string) {
-    const next = task.assignee_ids.includes(memberId)
-      ? task.assignee_ids.filter((id) => id !== memberId)
-      : [...task.assignee_ids, memberId]
-    onSetAssignees(task, next)
+  /** Clicking a member or label chip adds it to / removes it from the task. */
+  function toggle(field: LinkField, id: string) {
+    const current = task[field]
+    const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id]
+    onSetLinks(task, field, next)
   }
 
   async function handleDelete() {
@@ -164,7 +169,7 @@ export function TaskDetailPanel({
                       <button
                         key={m.id}
                         className={`chip${on ? ' chip--on' : ''}`}
-                        onClick={() => toggleAssignee(m.id)}
+                        onClick={() => toggle('assignee_ids', m.id)}
                         aria-pressed={on}
                       >
                         <Avatar member={m} size={18} />
@@ -172,6 +177,32 @@ export function TaskDetailPanel({
                       </button>
                     )
                   })}
+                </div>
+              )}
+            </dd>
+
+            <dt className="props__top">Labels</dt>
+            <dd>
+              {labels.length === 0 ? (
+                <button className="link-btn" onClick={onManageLabels}>+ Create labels</button>
+              ) : (
+                <div className="chips">
+                  {labels.map((l) => {
+                    const on = task.label_ids.includes(l.id)
+                    return (
+                      <button
+                        key={l.id}
+                        className={`chip chip--label${on ? ' chip--on' : ''}`}
+                        onClick={() => toggle('label_ids', l.id)}
+                        aria-pressed={on}
+                      >
+                        <LabelPill label={l} />
+                      </button>
+                    )
+                  })}
+                  <button className="chip chip--edit" onClick={onManageLabels} title="Manage labels" aria-label="Manage labels">
+                    Edit
+                  </button>
                 </div>
               )}
             </dd>

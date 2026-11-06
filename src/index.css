@@ -590,3 +590,28 @@ code {
   .team-btn__label { display: none; }
   .confirm--inline span:first-child { display: none; }
 }
+
+/* ---------- labels ---------- */
+.label-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  /* A light tint of the label color behind normal text keeps every color readable. */
+  background: color-mix(in srgb, var(--label) 16%, transparent);
+  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.label-pill__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--label); }
+.card__labels { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.chip--label { padding: 0 3px; }
+.chip--label:not(.chip--on) .label-pill { opacity: 0.6; }
+.chip--edit { padding: 0 10px; color: var(--text-3); border-style: dashed; }
+.starter-btn { margin-top: 10px; }
+.team-empty p { margin: 0; }
+.field-hint { margin: -4px 0 0; color: var(--amber); font-size: 12px; }

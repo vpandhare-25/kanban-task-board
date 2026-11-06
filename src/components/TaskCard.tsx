@@ -1,27 +1,38 @@
 import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import type { Task, TeamMember } from '../types'
+import type { BoardLookups, Label, Task, TeamMember } from '../types'
 import { AvatarStack } from './Avatar'
+import { LabelPill } from './LabelPill'
 import { PRIORITY_LABEL } from '../types'
 import { dueLabel, dueState } from '../lib/dates'
 
 interface Props {
   task: Task
-  membersById: Map<string, TeamMember>
+  lookups: BoardLookups
   /** True for the floating copy that follows the cursor while dragging. */
   overlay?: boolean
 }
 
 /** Visual card only: used both on the board and as the drag overlay. */
-export function TaskCardView({ task, membersById, overlay }: Props) {
-  // Ids whose member was deleted are skipped.
+export function TaskCardView({ task, lookups, overlay }: Props) {
+  // Turn ids into objects; ids whose member/label was just deleted are skipped.
   const assignees = task.assignee_ids
-    .map((id) => membersById.get(id))
+    .map((id) => lookups.membersById.get(id))
     .filter((m): m is TeamMember => Boolean(m))
+  const labels = task.label_ids
+    .map((id) => lookups.labelsById.get(id))
+    .filter((l): l is Label => Boolean(l))
   const due = task.due_date && task.status !== 'done' ? dueState(task.due_date) : null
 
   return (
     <article className={`card${overlay ? ' card--overlay' : ''}`}>
+      {labels.length > 0 && (
+        <div className="card__labels">
+          {labels.map((l) => (
+            <LabelPill key={l.id} label={l} />
+          ))}
+        </div>
+      )}
       <h3 className="card__title">{task.title}</h3>
       {task.description && <p className="card__desc">{task.description}</p>}
 
@@ -65,11 +76,11 @@ function dueLabelPlain(ymd: string) {
 export function TaskCard({
   task,
   onOpen,
-  membersById,
+  lookups,
 }: {
   task: Task
   onOpen: (task: Task) => void
-  membersById: Map<string, TeamMember>
+  lookups: BoardLookups
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
@@ -90,7 +101,7 @@ export function TaskCard({
         else listeners?.onKeyDown?.(e)
       }}
     >
-      <TaskCardView task={task} membersById={membersById} />
+      <TaskCardView task={task} lookups={lookups} />
     </div>
   )
 }

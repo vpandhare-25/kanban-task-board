@@ -6,15 +6,32 @@ import type { NewTask, Task, TaskStatus } from '../types'
 export type TaskPatch = Partial<Pick<Task, 'title' | 'description' | 'status' | 'priority' | 'due_date'>>
 
 /**
+ * Many-to-many links stored in their own tables.
+ * Assignees and labels work the same way, so one config drives both.
+ */
+export const LINKS = {
+  assignee_ids: { table: 'task_assignees', column: 'member_id', noun: 'assignees' },
+  label_ids: { table: 'task_labels', column: 'label_id', noun: 'labels' },
+} as const
+export type LinkField = keyof typeof LINKS
+
+/**
  * Supabase can fetch related rows in the same request ("embedded select").
  * `task_assignees(member_id)` follows the foreign key and returns
- * [{ member_id }, ...] for each task. We flatten that to a list of ids.
+ * [{ member_id }, ...] for each task. We flatten those to plain id lists.
  */
-const TASK_SELECT = '*, task_assignees(member_id)'
-type TaskRow = Omit<Task, 'assignee_ids'> & { task_assignees?: { member_id: string }[] }
+const TASK_SELECT = '*, task_assignees(member_id), task_labels(label_id)'
+type TaskRow = Omit<Task, LinkField> & {
+  task_assignees?: { member_id: string }[]
+  task_labels?: { label_id: string }[]
+}
 
-function fromRow({ task_assignees, ...task }: TaskRow): Task {
-  return { ...task, assignee_ids: (task_assignees ?? []).map((a) => a.member_id) }
+function fromRow({ task_assignees, task_labels, ...task }: TaskRow): Task {
+  return {
+    ...task,
+    assignee_ids: (task_assignees ?? []).map((a) => a.member_id),
+    label_ids: (task_labels ?? []).map((l) => l.label_id),
+  }
 }
 
 function sortNewestFirst(list: Task[]) {
@@ -128,31 +145,33 @@ export function useTasks(userId: string) {
   }, [])
 
   /**
-   * Sets exactly which members are assigned to a task.
-   * We work out which assignments to add and which to remove, apply that on
+   * Sets exactly which members (or labels) a task has.
+   * We work out which links to add and which to remove, apply that on
    * screen right away, then save both changes. On failure we reload from the
    * database so the screen matches what was really saved.
    */
-  const setAssignees = useCallback(
-    async (task: Task, memberIds: string[]) => {
+  const setLinks = useCallback(
+    async (task: Task, field: LinkField, ids: string[]) => {
       if (!supabase) return
-      const toAdd = memberIds.filter((id) => !task.assignee_ids.includes(id))
-      const toRemove = task.assignee_ids.filter((id) => !memberIds.includes(id))
+      const { table, column, noun } = LINKS[field]
+      const current = task[field]
+      const toAdd = ids.filter((id) => !current.includes(id))
+      const toRemove = current.filter((id) => !ids.includes(id))
       if (toAdd.length === 0 && toRemove.length === 0) return
 
-      setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, assignee_ids: memberIds } : t)))
+      setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, [field]: ids } : t)))
 
       const results = await Promise.all([
         toAdd.length
-          ? supabase.from('task_assignees').insert(toAdd.map((member_id) => ({ task_id: task.id, member_id })))
+          ? supabase.from(table).insert(toAdd.map((id) => ({ task_id: task.id, [column]: id })))
           : null,
         toRemove.length
-          ? supabase.from('task_assignees').delete().eq('task_id', task.id).in('member_id', toRemove)
+          ? supabase.from(table).delete().eq('task_id', task.id).in(column, toRemove)
           : null,
       ])
       const failed = results.find((r) => r?.error)
       if (failed?.error) {
-        setActionError(friendlyError("Couldn't update assignees", failed.error.message))
+        setActionError(friendlyError(`Couldn't update ${noun}`, failed.error.message))
         load()
       }
     },
@@ -160,16 +179,12 @@ export function useTasks(userId: string) {
   )
 
   /**
-   * After a team member is deleted, the database removes their assignments
+   * After a team member or label is deleted, the database removes its links
    * automatically (ON DELETE CASCADE). This mirrors that on screen.
    */
-  const forgetMember = useCallback((memberId: string) => {
+  const forgetLink = useCallback((field: LinkField, id: string) => {
     setTasks((prev) =>
-      prev.map((t) =>
-        t.assignee_ids.includes(memberId)
-          ? { ...t, assignee_ids: t.assignee_ids.filter((id) => id !== memberId) }
-          : t,
-      ),
+      prev.map((t) => (t[field].includes(id) ? { ...t, [field]: t[field].filter((x) => x !== id) } : t)),
     )
   }, [])
 
@@ -187,8 +202,8 @@ export function useTasks(userId: string) {
     updateTask,
     moveTask,
     deleteTask,
-    setAssignees,
-    forgetMember,
+    setLinks,
+    forgetLink,
     setActionError,
   }
 }

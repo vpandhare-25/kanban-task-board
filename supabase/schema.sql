@@ -120,3 +120,62 @@ create policy "Users delete their own assignments"
   on public.task_assignees for delete
   to authenticated
   using (user_id = auth.uid());
+
+-- =============================================================
+-- Labels / tags (advanced feature #4)
+-- Same shape as team members: a per-guest list + a link table.
+-- =============================================================
+
+create table if not exists public.labels (
+  id         uuid primary key default gen_random_uuid(),
+  name       text not null check (char_length(trim(name)) between 1 and 30),
+  color      text not null default '#6b7280' check (color ~ '^#[0-9a-fA-F]{6}$'),
+  user_id    uuid not null default auth.uid()
+             references auth.users (id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+create index if not exists labels_user_id_idx on public.labels (user_id);
+
+create table if not exists public.task_labels (
+  task_id  uuid not null references public.tasks (id) on delete cascade,
+  label_id uuid not null references public.labels (id) on delete cascade,
+  user_id  uuid not null default auth.uid()
+           references auth.users (id) on delete cascade,
+  primary key (task_id, label_id)
+);
+create index if not exists task_labels_user_id_idx on public.task_labels (user_id);
+create index if not exists task_labels_label_id_idx on public.task_labels (label_id);
+
+alter table public.labels      enable row level security;
+alter table public.task_labels enable row level security;
+
+drop policy if exists "Users manage their own labels" on public.labels;
+create policy "Users manage their own labels"
+  on public.labels for all
+  to authenticated
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+drop policy if exists "Users read their own task labels"   on public.task_labels;
+drop policy if exists "Users create their own task labels" on public.task_labels;
+drop policy if exists "Users delete their own task labels" on public.task_labels;
+
+create policy "Users read their own task labels"
+  on public.task_labels for select
+  to authenticated
+  using (user_id = auth.uid());
+
+-- Only link a task and a label that both belong to you.
+create policy "Users create their own task labels"
+  on public.task_labels for insert
+  to authenticated
+  with check (
+    user_id = auth.uid()
+    and exists (select 1 from public.tasks t where t.id = task_id and t.user_id = auth.uid())
+    and exists (select 1 from public.labels l where l.id = label_id and l.user_id = auth.uid())
+  );
+
+create policy "Users delete their own task labels"
+  on public.task_labels for delete
+  to authenticated
+  using (user_id = auth.uid());

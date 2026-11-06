@@ -14,7 +14,25 @@ export interface Task {
   created_at: string
   /** Ids of assigned team members. Comes from the task_assignees table, not a column on tasks. */
   assignee_ids: string[]
+  /** Ids of attached labels, from the task_labels table. */
+  label_ids: string[]
 }
+
+/** A custom tag like "Bug" or "Design". */
+export interface Label {
+  id: string
+  name: string
+  color: string // "#rrggbb"
+  user_id: string
+  created_at: string
+}
+
+/** One-click starter labels offered when a guest has none yet. */
+export const STARTER_LABELS = [
+  { name: 'Bug', color: '#d93f3f' },
+  { name: 'Feature', color: '#5b5bd6' },
+  { name: 'Design', color: '#e2558f' },
+]
 
 /** A person on the guest's team (just a name + color, not a real account). */
 export interface TeamMember {
@@ -25,7 +43,7 @@ export interface TeamMember {
   created_at: string
 }
 
-/** Colors offered when adding a team member. */
+/** Colors offered for team members and labels. */
 export const MEMBER_COLORS = [
   '#5b5bd6', '#2fa36b', '#e5a00d', '#d93f3f',
   '#8b5cf6', '#0ea5b7', '#e2558f', '#6b7280',
@@ -52,4 +70,10 @@ export const PRIORITY_LABEL: Record<TaskPriority, string> = {
   low: 'Low',
   normal: 'Normal',
   high: 'High',
+}
+
+/** Id -> item maps the cards use to draw avatars and label pills. */
+export interface BoardLookups {
+  membersById: Map<string, TeamMember>
+  labelsById: Map<string, Label>
 }
