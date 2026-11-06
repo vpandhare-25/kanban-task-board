@@ -12,7 +12,24 @@ export interface Task {
   due_date: string | null // "YYYY-MM-DD"
   user_id: string
   created_at: string
+  /** Ids of assigned team members. Comes from the task_assignees table, not a column on tasks. */
+  assignee_ids: string[]
 }
+
+/** A person on the guest's team (just a name + color, not a real account). */
+export interface TeamMember {
+  id: string
+  name: string
+  color: string // "#rrggbb"
+  user_id: string
+  created_at: string
+}
+
+/** Colors offered when adding a team member. */
+export const MEMBER_COLORS = [
+  '#5b5bd6', '#2fa36b', '#e5a00d', '#d93f3f',
+  '#8b5cf6', '#0ea5b7', '#e2558f', '#6b7280',
+]
 
 // What the "New task" form sends. user_id and created_at are set by the database.
 export interface NewTask {

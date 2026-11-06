@@ -5,6 +5,18 @@ import type { NewTask, Task, TaskStatus } from '../types'
 /** Fields the user can edit on an existing task. */
 export type TaskPatch = Partial<Pick<Task, 'title' | 'description' | 'status' | 'priority' | 'due_date'>>
 
+/**
+ * Supabase can fetch related rows in the same request ("embedded select").
+ * `task_assignees(member_id)` follows the foreign key and returns
+ * [{ member_id }, ...] for each task. We flatten that to a list of ids.
+ */
+const TASK_SELECT = '*, task_assignees(member_id)'
+type TaskRow = Omit<Task, 'assignee_ids'> & { task_assignees?: { member_id: string }[] }
+
+function fromRow({ task_assignees, ...task }: TaskRow): Task {
+  return { ...task, assignee_ids: (task_assignees ?? []).map((a) => a.member_id) }
+}
+
 function sortNewestFirst(list: Task[]) {
   return list.sort((a, b) => b.created_at.localeCompare(a.created_at))
 }
@@ -38,10 +50,10 @@ export function useTasks(userId: string) {
     setLoadError(null)
     const { data, error } = await supabase
       .from('tasks')
-      .select('*')
+      .select(TASK_SELECT)
       .order('created_at', { ascending: false })
     if (error) setLoadError(friendlyError("We couldn't reach the server", error.message))
-    else setTasks(data as Task[])
+    else setTasks((data as TaskRow[]).map(fromRow))
     setLoading(false)
   }, [])
 
@@ -60,13 +72,13 @@ export function useTasks(userId: string) {
         due_date: input.due_date || null,
         status: input.status,
       })
-      .select()
+      .select(TASK_SELECT)
       .single()
     if (error) {
       setActionError(friendlyError("Couldn't create task", error.message))
       return false
     }
-    setTasks((prev) => [data as Task, ...prev])
+    setTasks((prev) => [fromRow(data as TaskRow), ...prev])
     return true
   }, [])
 
@@ -115,6 +127,52 @@ export function useTasks(userId: string) {
     return true
   }, [])
 
+  /**
+   * Sets exactly which members are assigned to a task.
+   * We work out which assignments to add and which to remove, apply that on
+   * screen right away, then save both changes. On failure we reload from the
+   * database so the screen matches what was really saved.
+   */
+  const setAssignees = useCallback(
+    async (task: Task, memberIds: string[]) => {
+      if (!supabase) return
+      const toAdd = memberIds.filter((id) => !task.assignee_ids.includes(id))
+      const toRemove = task.assignee_ids.filter((id) => !memberIds.includes(id))
+      if (toAdd.length === 0 && toRemove.length === 0) return
+
+      setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, assignee_ids: memberIds } : t)))
+
+      const results = await Promise.all([
+        toAdd.length
+          ? supabase.from('task_assignees').insert(toAdd.map((member_id) => ({ task_id: task.id, member_id })))
+          : null,
+        toRemove.length
+          ? supabase.from('task_assignees').delete().eq('task_id', task.id).in('member_id', toRemove)
+          : null,
+      ])
+      const failed = results.find((r) => r?.error)
+      if (failed?.error) {
+        setActionError(friendlyError("Couldn't update assignees", failed.error.message))
+        load()
+      }
+    },
+    [load],
+  )
+
+  /**
+   * After a team member is deleted, the database removes their assignments
+   * automatically (ON DELETE CASCADE). This mirrors that on screen.
+   */
+  const forgetMember = useCallback((memberId: string) => {
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.assignee_ids.includes(memberId)
+          ? { ...t, assignee_ids: t.assignee_ids.filter((id) => id !== memberId) }
+          : t,
+      ),
+    )
+  }, [])
+
   // Stable function so components can use it in effects without re-running them.
   const clearActionError = useCallback(() => setActionError(null), [])
 
@@ -129,5 +187,8 @@ export function useTasks(userId: string) {
     updateTask,
     moveTask,
     deleteTask,
+    setAssignees,
+    forgetMember,
+    setActionError,
   }
 }

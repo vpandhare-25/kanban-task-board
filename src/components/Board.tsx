@@ -9,7 +9,7 @@ import {
   useSensors,
 } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
-import type { Task, TaskStatus } from '../types'
+import type { Task, TaskStatus, TeamMember } from '../types'
 import { COLUMNS } from '../types'
 import { useTasks } from '../hooks/useTasks'
 import { Column } from './Column'
@@ -17,6 +17,9 @@ import { TaskCardView } from './TaskCard'
 import { NewTaskModal } from './NewTaskModal'
 import { StatusScreen } from './StatusScreen'
 import { TaskDetailPanel } from './TaskDetailPanel'
+import { TeamDialog } from './TeamDialog'
+import { AvatarStack } from './Avatar'
+import { useTeam } from '../hooks/useTeam'
 
 export function Board({ userId }: { userId: string }) {
   const {
@@ -30,7 +33,22 @@ export function Board({ userId }: { userId: string }) {
     updateTask,
     moveTask,
     deleteTask,
+    setAssignees,
+    forgetMember,
+    setActionError,
   } = useTasks(userId)
+  // Team errors show in the same toast as task errors.
+  const { members, addMember, removeMember } = useTeam(userId, setActionError)
+  const [teamOpen, setTeamOpen] = useState(false)
+
+  // Quick id -> member lookup for drawing avatars on cards.
+  const membersById = useMemo(() => new Map(members.map((m) => [m.id, m])), [members])
+
+  async function handleRemoveMember(member: TeamMember) {
+    const ok = await removeMember(member)
+    if (ok) forgetMember(member.id)
+    return ok
+  }
 
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [modalStatus, setModalStatus] = useState<TaskStatus | null>(null)
@@ -91,9 +109,19 @@ export function Board({ userId }: { userId: string }) {
             )}
           </div>
         </div>
-        <button className="btn btn--primary" onClick={() => setModalStatus('todo')}>
-          <span aria-hidden="true">+</span> New task
-        </button>
+        <div className="topbar__actions">
+          <button className="team-btn" onClick={() => setTeamOpen(true)} title="Manage team">
+            {members.length > 0 ? (
+              <AvatarStack members={members} max={4} size={26} label={`Team: ${members.map((m) => m.name).join(', ')}`} />
+            ) : (
+              <span className="team-btn__icon" aria-hidden="true">+</span>
+            )}
+            <span className="team-btn__label">Team</span>
+          </button>
+          <button className="btn btn--primary" onClick={() => setModalStatus('todo')}>
+            <span aria-hidden="true">+</span> New task
+          </button>
+        </div>
       </header>
 
       {loading ? (
@@ -121,12 +149,13 @@ export function Board({ userId }: { userId: string }) {
                 tasks={byStatus[col.id]}
                 onAdd={setModalStatus}
                 onOpen={(t) => setOpenTaskId(t.id)}
+                membersById={membersById}
               />
             ))}
           </main>
           {/* The floating card that follows the pointer while dragging. */}
           <DragOverlay dropAnimation={{ duration: 180, easing: 'cubic-bezier(0.2, 0, 0, 1)' }}>
-            {activeTask ? <TaskCardView task={activeTask} overlay /> : null}
+            {activeTask ? <TaskCardView task={activeTask} membersById={membersById} overlay /> : null}
           </DragOverlay>
         </DndContext>
       )}
@@ -146,6 +175,19 @@ export function Board({ userId }: { userId: string }) {
           onClose={closePanel}
           onUpdate={updateTask}
           onDelete={deleteTask}
+          members={members}
+          onSetAssignees={setAssignees}
+          onManageTeam={() => setTeamOpen(true)}
+        />
+      )}
+
+      {teamOpen && (
+        <TeamDialog
+          members={members}
+          tasks={tasks}
+          onAdd={addMember}
+          onRemove={handleRemoveMember}
+          onClose={() => setTeamOpen(false)}
         />
       )}
 

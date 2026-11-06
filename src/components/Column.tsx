@@ -1,5 +1,5 @@
 import { useDroppable } from '@dnd-kit/core'
-import type { Task, TaskStatus } from '../types'
+import type { Task, TaskStatus, TeamMember } from '../types'
 import { TaskCard } from './TaskCard'
 
 interface Props {
@@ -8,6 +8,7 @@ interface Props {
   tasks: Task[]
   onAdd: (status: TaskStatus) => void
   onOpen: (task: Task) => void
+  membersById: Map<string, TeamMember>
 }
 
 const EMPTY_TEXT: Record<TaskStatus, string> = {
@@ -17,7 +18,7 @@ const EMPTY_TEXT: Record<TaskStatus, string> = {
   done: 'Finished work lands here.',
 }
 
-export function Column({ id, label, tasks, onAdd, onOpen }: Props) {
+export function Column({ id, label, tasks, onAdd, onOpen, membersById }: Props) {
   // Each column is a drop zone. Its id is the status a task gets when dropped here.
   const { setNodeRef, isOver } = useDroppable({ id })
 
@@ -41,7 +42,7 @@ export function Column({ id, label, tasks, onAdd, onOpen }: Props) {
         {tasks.length === 0 ? (
           <div className="column__empty">{EMPTY_TEXT[id]}</div>
         ) : (
-          tasks.map((task) => <TaskCard key={task.id} task={task} onOpen={onOpen} />)
+          tasks.map((task) => <TaskCard key={task.id} task={task} onOpen={onOpen} membersById={membersById} />)
         )}
       </div>
     </section>

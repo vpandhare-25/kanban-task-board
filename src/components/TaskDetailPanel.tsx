@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import type { Task, TaskPriority, TaskStatus } from '../types'
+import type { Task, TaskPriority, TaskStatus, TeamMember } from '../types'
+import { Avatar } from './Avatar'
 import { COLUMNS } from '../types'
 import type { TaskPatch } from '../hooks/useTasks'
 import { dueLabel, dueState } from '../lib/dates'
@@ -9,6 +10,9 @@ interface Props {
   onClose: () => void
   onUpdate: (task: Task, patch: TaskPatch) => Promise<boolean>
   onDelete: (task: Task) => Promise<boolean>
+  members: TeamMember[]
+  onSetAssignees: (task: Task, memberIds: string[]) => void
+  onManageTeam: () => void
 }
 
 /**
@@ -16,7 +20,15 @@ interface Props {
  * like Linear or Notion: dropdowns save on change, text saves when you leave the field.
  * The parent renders it with key={task.id}, so local text state resets per task.
  */
-export function TaskDetailPanel({ task, onClose, onUpdate, onDelete }: Props) {
+export function TaskDetailPanel({
+  task,
+  onClose,
+  onUpdate,
+  onDelete,
+  members,
+  onSetAssignees,
+  onManageTeam,
+}: Props) {
   const [title, setTitle] = useState(task.title)
   const [description, setDescription] = useState(task.description ?? '')
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -40,6 +52,14 @@ export function TaskDetailPanel({ task, onClose, onUpdate, onDelete }: Props) {
   function saveDescription() {
     const next = description.trim() || null
     if (next !== task.description) onUpdate(task, { description: next })
+  }
+
+  /** Clicking a member chip adds or removes them from the task. */
+  function toggleAssignee(memberId: string) {
+    const next = task.assignee_ids.includes(memberId)
+      ? task.assignee_ids.filter((id) => id !== memberId)
+      : [...task.assignee_ids, memberId]
+    onSetAssignees(task, next)
   }
 
   async function handleDelete() {
@@ -129,6 +149,30 @@ export function TaskDetailPanel({ task, onClose, onUpdate, onDelete }: Props) {
               />
               {task.due_date && due && due !== 'later' && (
                 <span className={`badge badge--${due}`}>{dueLabel(task.due_date)}</span>
+              )}
+            </dd>
+
+            <dt className="props__top">Assignees</dt>
+            <dd>
+              {members.length === 0 ? (
+                <button className="link-btn" onClick={onManageTeam}>+ Add team members</button>
+              ) : (
+                <div className="chips">
+                  {members.map((m) => {
+                    const on = task.assignee_ids.includes(m.id)
+                    return (
+                      <button
+                        key={m.id}
+                        className={`chip${on ? ' chip--on' : ''}`}
+                        onClick={() => toggleAssignee(m.id)}
+                        aria-pressed={on}
+                      >
+                        <Avatar member={m} size={18} />
+                        {m.name}
+                      </button>
+                    )
+                  })}
+                </div>
               )}
             </dd>
 

@@ -1,17 +1,23 @@
 import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import type { Task } from '../types'
+import type { Task, TeamMember } from '../types'
+import { AvatarStack } from './Avatar'
 import { PRIORITY_LABEL } from '../types'
 import { dueLabel, dueState } from '../lib/dates'
 
 interface Props {
   task: Task
+  membersById: Map<string, TeamMember>
   /** True for the floating copy that follows the cursor while dragging. */
   overlay?: boolean
 }
 
 /** Visual card only: used both on the board and as the drag overlay. */
-export function TaskCardView({ task, overlay }: Props) {
+export function TaskCardView({ task, membersById, overlay }: Props) {
+  // Ids whose member was deleted are skipped.
+  const assignees = task.assignee_ids
+    .map((id) => membersById.get(id))
+    .filter((m): m is TeamMember => Boolean(m))
   const due = task.due_date && task.status !== 'done' ? dueState(task.due_date) : null
 
   return (
@@ -19,7 +25,7 @@ export function TaskCardView({ task, overlay }: Props) {
       <h3 className="card__title">{task.title}</h3>
       {task.description && <p className="card__desc">{task.description}</p>}
 
-      {(task.priority !== 'normal' || task.due_date) && (
+      {(task.priority !== 'normal' || task.due_date || assignees.length > 0) && (
         <div className="card__meta">
           {task.priority !== 'normal' && (
             <span className={`badge badge--${task.priority}`}>
@@ -31,6 +37,11 @@ export function TaskCardView({ task, overlay }: Props) {
             <span className={`badge badge--due${due ? ` badge--${due}` : ''}`}>
               <CalendarIcon />
               {task.status === 'done' ? dueLabelPlain(task.due_date) : dueLabel(task.due_date)}
+            </span>
+          )}
+          {assignees.length > 0 && (
+            <span className="card__assignees">
+              <AvatarStack members={assignees} />
             </span>
           )}
         </div>
@@ -51,7 +62,15 @@ function dueLabelPlain(ymd: string) {
  * so clicking and dragging don't get in each other's way.
  * Keyboard: Enter opens the task, Space picks it up to move it.
  */
-export function TaskCard({ task, onOpen }: { task: Task; onOpen: (task: Task) => void }) {
+export function TaskCard({
+  task,
+  onOpen,
+  membersById,
+}: {
+  task: Task
+  onOpen: (task: Task) => void
+  membersById: Map<string, TeamMember>
+}) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
     data: { task },
@@ -71,7 +90,7 @@ export function TaskCard({ task, onOpen }: { task: Task; onOpen: (task: Task) =>
         else listeners?.onKeyDown?.(e)
       }}
     >
-      <TaskCardView task={task} />
+      <TaskCardView task={task} membersById={membersById} />
     </div>
   )
 }

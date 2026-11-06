@@ -488,3 +488,105 @@ code {
 @media (max-width: 720px) {
   .drawer__body, .drawer__footer { padding-left: 16px; padding-right: 16px; }
 }
+
+/* ---------- team & avatars ---------- */
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  user-select: none;
+}
+.avatar--more { background: var(--surface-2); color: var(--text-2); }
+.avatar-stack { display: inline-flex; align-items: center; }
+/* Overlap avatars and give each a ring in the card color so they read separately. */
+.avatar-stack .avatar { box-shadow: 0 0 0 2px var(--surface); }
+.avatar-stack .avatar + .avatar { margin-left: -6px; }
+.card__assignees { margin-left: auto; }
+
+.topbar__actions { display: flex; align-items: center; gap: 10px; }
+.team-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 10px 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-2);
+  font-weight: 500;
+  cursor: pointer;
+}
+.team-btn:hover { background: var(--surface-2); color: var(--text); }
+.team-btn__icon {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: 50%;
+  font-size: 15px;
+}
+
+.modal__titlebar { display: flex; align-items: center; justify-content: space-between; }
+.team-empty { color: var(--text-2); font-size: 13px; padding: 8px 0; }
+.team-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.team-list__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+.team-list__name { font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.team-list__count { color: var(--text-3); font-size: 12px; }
+.confirm--inline { flex-wrap: nowrap; gap: 6px; }
+.btn--sm { height: 28px; padding: 0 10px; font-size: 13px; }
+
+.team-add { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }
+.swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+.swatch {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px transparent;
+  transition: box-shadow 0.15s;
+}
+.swatch--selected { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text); }
+.team-add .btn { align-self: flex-end; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.chip:not(.chip--on) .avatar { opacity: 0.55; }
+.chip:hover { background: var(--surface-2); }
+/* Listed with :hover too, otherwise hovering a selected chip would hide that it's selected. */
+.chip--on, .chip--on:hover { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+.props__top { align-self: start; padding-top: 8px; }
+.link-btn { border: none; background: none; padding: 6px 8px; color: var(--accent); font-weight: 500; cursor: pointer; }
+.link-btn:hover { text-decoration: underline; }
+
+@media (max-width: 720px) {
+  .team-btn__label { display: none; }
+  .confirm--inline span:first-child { display: none; }
+}
