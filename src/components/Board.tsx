@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -16,13 +16,29 @@ import { Column } from './Column'
 import { TaskCardView } from './TaskCard'
 import { NewTaskModal } from './NewTaskModal'
 import { StatusScreen } from './StatusScreen'
+import { TaskDetailPanel } from './TaskDetailPanel'
 
 export function Board({ userId }: { userId: string }) {
-  const { tasks, loading, loadError, actionError, clearActionError, reload, createTask, moveTask } =
-    useTasks(userId)
+  const {
+    tasks,
+    loading,
+    loadError,
+    actionError,
+    clearActionError,
+    reload,
+    createTask,
+    updateTask,
+    moveTask,
+    deleteTask,
+  } = useTasks(userId)
 
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [modalStatus, setModalStatus] = useState<TaskStatus | null>(null)
+  // We store only the id and look the task up each render, so the panel
+  // always shows the latest values (e.g. after a drag or a failed save).
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null)
+  const openTask = tasks.find((t) => t.id === openTaskId) ?? null
+  const closePanel = useCallback(() => setOpenTaskId(null), [])
 
   // Sensors decide how a drag starts:
   // - mouse: after moving 5px (so a plain click doesn't start a drag)
@@ -104,6 +120,7 @@ export function Board({ userId }: { userId: string }) {
                 label={col.label}
                 tasks={byStatus[col.id]}
                 onAdd={setModalStatus}
+                onOpen={(t) => setOpenTaskId(t.id)}
               />
             ))}
           </main>
@@ -119,6 +136,16 @@ export function Board({ userId }: { userId: string }) {
           initialStatus={modalStatus}
           onClose={() => setModalStatus(null)}
           onCreate={createTask}
+        />
+      )}
+
+      {openTask && (
+        <TaskDetailPanel
+          key={openTask.id}
+          task={openTask}
+          onClose={closePanel}
+          onUpdate={updateTask}
+          onDelete={deleteTask}
         />
       )}
 

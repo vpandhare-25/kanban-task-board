@@ -405,3 +405,86 @@ code {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* ---------- task detail drawer ---------- */
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgb(10 10 15 / 0.35);
+  animation: fade-in 0.15s ease-out;
+}
+.drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(480px, 100%);
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-lift);
+  animation: slide-in 0.22s cubic-bezier(0.2, 0, 0, 1);
+}
+@keyframes slide-in { from { transform: translateX(24px); opacity: 0; } }
+
+.drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 14px 24px;
+  border-bottom: 1px solid var(--border);
+}
+.drawer__body { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 20px; }
+.drawer__title {
+  width: 100%;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  field-sizing: content; /* grows with the text in modern browsers */
+}
+.drawer__title:focus { box-shadow: 0 2px 0 var(--accent); }
+.drawer__section { display: flex; flex-direction: column; gap: 8px; }
+.drawer__label { font-size: 12px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.04em; }
+.drawer__desc { resize: vertical; min-height: 110px; line-height: 1.5; }
+.drawer__footer { padding: 14px 24px; border-top: 1px solid var(--border); }
+
+.status-pill {
+  --col: var(--todo);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 12px;
+  font-weight: 500;
+}
+.status-pill--in_progress { --col: var(--in-progress); }
+.status-pill--in_review { --col: var(--in-review); }
+.status-pill--done { --col: var(--done); }
+
+/* Property list: label on the left, editable value on the right. */
+.props { display: grid; grid-template-columns: 96px 1fr; align-items: center; gap: 6px 12px; margin: 0; }
+.props dt { color: var(--text-3); font-size: 13px; }
+.props dd { margin: 0; }
+.props__due { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.props__muted { color: var(--text-2); font-size: 13px; padding-left: 8px; }
+.field--inline { width: auto; min-width: 150px; border-color: transparent; background: transparent; cursor: pointer; }
+.field--inline:hover { background: var(--surface-2); }
+.field--inline:focus { border-color: var(--accent); background: var(--surface); }
+
+.btn--danger { background: var(--red); color: #fff; }
+.btn--danger:hover { filter: brightness(1.08); }
+.btn--danger-text { color: var(--red); }
+.confirm { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--text-2); }
+.confirm span { margin-right: auto; }
+
+@media (max-width: 720px) {
+  .drawer__body, .drawer__footer { padding-left: 16px; padding-right: 16px; }
+}

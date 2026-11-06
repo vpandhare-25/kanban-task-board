@@ -45,8 +45,13 @@ function dueLabelPlain(ymd: string) {
   return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
-/** Draggable wrapper around the card. */
-export function TaskCard({ task }: { task: Task }) {
+/**
+ * Draggable wrapper around the card.
+ * A click opens the detail panel; a drag only starts after the pointer moves 5px,
+ * so clicking and dragging don't get in each other's way.
+ * Keyboard: Enter opens the task, Space picks it up to move it.
+ */
+export function TaskCard({ task, onOpen }: { task: Task; onOpen: (task: Task) => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
     data: { task },
@@ -57,9 +62,14 @@ export function TaskCard({ task }: { task: Task }) {
       ref={setNodeRef}
       className={`card-slot${isDragging ? ' card-slot--dragging' : ''}`}
       style={{ transform: CSS.Translate.toString(transform) }}
-      aria-label={`Task: ${task.title}`}
+      aria-label={`Task: ${task.title}. Press Enter to open, Space to move.`}
       {...listeners}
       {...attributes}
+      onClick={() => onOpen(task)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') onOpen(task)
+        else listeners?.onKeyDown?.(e)
+      }}
     >
       <TaskCardView task={task} />
     </div>

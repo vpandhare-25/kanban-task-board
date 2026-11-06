@@ -7,6 +7,7 @@ interface Props {
   label: string
   tasks: Task[]
   onAdd: (status: TaskStatus) => void
+  onOpen: (task: Task) => void
 }
 
 const EMPTY_TEXT: Record<TaskStatus, string> = {
@@ -16,7 +17,7 @@ const EMPTY_TEXT: Record<TaskStatus, string> = {
   done: 'Finished work lands here.',
 }
 
-export function Column({ id, label, tasks, onAdd }: Props) {
+export function Column({ id, label, tasks, onAdd, onOpen }: Props) {
   // Each column is a drop zone. Its id is the status a task gets when dropped here.
   const { setNodeRef, isOver } = useDroppable({ id })
 
@@ -40,7 +41,7 @@ export function Column({ id, label, tasks, onAdd }: Props) {
         {tasks.length === 0 ? (
           <div className="column__empty">{EMPTY_TEXT[id]}</div>
         ) : (
-          tasks.map((task) => <TaskCard key={task.id} task={task} />)
+          tasks.map((task) => <TaskCard key={task.id} task={task} onOpen={onOpen} />)
         )}
       </div>
     </section>
