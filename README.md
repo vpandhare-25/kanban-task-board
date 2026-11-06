@@ -4,6 +4,8 @@ A Kanban-style task board (To Do → In Progress → In Review → Done) built w
 React, TypeScript, Vite and Supabase. Every visitor automatically gets a private
 guest account, and Row Level Security keeps each guest's tasks separate.
 
+**Live demo:** https://kanban-task-board-mu-ten.vercel.app
+
 ## Tech
 - **Frontend:** React 19 + TypeScript + Vite, plain CSS with design tokens
 - **Drag and drop:** dnd-kit (mouse, touch and keyboard)
