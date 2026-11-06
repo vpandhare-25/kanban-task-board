@@ -1,0 +1,154 @@
+import { useEffect, useMemo, useState } from 'react'
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
+import type { Task, TaskStatus } from '../types'
+import { COLUMNS } from '../types'
+import { useTasks } from '../hooks/useTasks'
+import { Column } from './Column'
+import { TaskCardView } from './TaskCard'
+import { NewTaskModal } from './NewTaskModal'
+import { StatusScreen } from './StatusScreen'
+
+export function Board({ userId }: { userId: string }) {
+  const { tasks, loading, loadError, actionError, clearActionError, reload, createTask, moveTask } =
+    useTasks(userId)
+
+  const [activeTask, setActiveTask] = useState<Task | null>(null)
+  const [modalStatus, setModalStatus] = useState<TaskStatus | null>(null)
+
+  // Sensors decide how a drag starts:
+  // - mouse: after moving 5px (so a plain click doesn't start a drag)
+  // - touch: after a short press (so swiping still scrolls the page on phones)
+  // - keyboard: Space to pick up, arrow keys to move, Space to drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
+    useSensor(KeyboardSensor),
+  )
+
+  // Group tasks by column once per change instead of filtering in every column.
+  const byStatus = useMemo(() => {
+    const groups: Record<TaskStatus, Task[]> = { todo: [], in_progress: [], in_review: [], done: [] }
+    for (const t of tasks) groups[t.status].push(t)
+    return groups
+  }, [tasks])
+
+  // Hide the error toast automatically after a few seconds.
+  useEffect(() => {
+    if (!actionError) return
+    const id = setTimeout(clearActionError, 5000)
+    return () => clearTimeout(id)
+  }, [actionError, clearActionError])
+
+  function handleDragStart(e: DragStartEvent) {
+    setActiveTask((e.active.data.current?.task as Task) ?? null)
+  }
+
+  function handleDragEnd(e: DragEndEvent) {
+    setActiveTask(null)
+    const task = e.active.data.current?.task as Task | undefined
+    const target = e.over?.id as TaskStatus | undefined
+    if (task && target) moveTask(task, target)
+  }
+
+  const doneCount = byStatus.done.length
+
+  return (
+    <div className="app">
+      <header className="topbar">
+        <div className="topbar__brand">
+          <span className="logo" aria-hidden="true">▦</span>
+          <div>
+            <h1 className="topbar__title">My Board</h1>
+            {!loading && !loadError && (
+              <p className="topbar__subtitle">
+                {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'} · {doneCount} done
+              </p>
+            )}
+          </div>
+        </div>
+        <button className="btn btn--primary" onClick={() => setModalStatus('todo')}>
+          <span aria-hidden="true">+</span> New task
+        </button>
+      </header>
+
+      {loading ? (
+        <BoardSkeleton />
+      ) : loadError ? (
+        <StatusScreen
+          tone="error"
+          title="Couldn't load your board"
+          message={loadError}
+          action={{ label: 'Try again', onClick: reload }}
+        />
+      ) : (
+        <DndContext
+          sensors={sensors}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={() => setActiveTask(null)}
+        >
+          <main className="board">
+            {COLUMNS.map((col) => (
+              <Column
+                key={col.id}
+                id={col.id}
+                label={col.label}
+                tasks={byStatus[col.id]}
+                onAdd={setModalStatus}
+              />
+            ))}
+          </main>
+          {/* The floating card that follows the pointer while dragging. */}
+          <DragOverlay dropAnimation={{ duration: 180, easing: 'cubic-bezier(0.2, 0, 0, 1)' }}>
+            {activeTask ? <TaskCardView task={activeTask} overlay /> : null}
+          </DragOverlay>
+        </DndContext>
+      )}
+
+      {modalStatus && (
+        <NewTaskModal
+          initialStatus={modalStatus}
+          onClose={() => setModalStatus(null)}
+          onCreate={createTask}
+        />
+      )}
+
+      {actionError && (
+        <div className="toast" role="alert">
+          <span>{actionError}</span>
+          <button className="icon-btn" onClick={clearActionError} aria-label="Dismiss">×</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Grey placeholder columns shown while tasks load. */
+function BoardSkeleton() {
+  return (
+    <main className="board" aria-busy="true" aria-label="Loading tasks">
+      {COLUMNS.map((col, i) => (
+        <section key={col.id} className={`column column--${col.id}`}>
+          <header className="column__header">
+            <span className="column__dot" aria-hidden="true" />
+            <h2 className="column__title">{col.label}</h2>
+          </header>
+          <div className="column__body">
+            {Array.from({ length: 3 - (i % 2) }).map((_, j) => (
+              <div key={j} className="skeleton-card" />
+            ))}
+          </div>
+        </section>
+      ))}
+    </main>
+  )
+}
