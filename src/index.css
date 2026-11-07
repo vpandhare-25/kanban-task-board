@@ -12,7 +12,7 @@
   --border-strong: #d0d0d6;
   --text: #18181b;
   --text-2: #5b5b66;
-  --text-3: #8e8e99;
+  --text-3: #6b6b76; /* ~5:1 on white, passes WCAG AA for small text */
 
   --accent: #5b5bd6;
   --accent-hover: #4b4bc4;
@@ -50,7 +50,7 @@
     --border-strong: #3a3a43;
     --text: #ededf0;
     --text-2: #a4a4af;
-    --text-3: #72727d;
+    --text-3: #8b8b96;
     --accent: #7c7cf0;
     --accent-hover: #8f8ff5;
     --accent-soft: #26264a;
@@ -845,3 +845,9 @@ code {
   .stat__sub, .progress { display: none; }
   .stat dt { font-size: 10px; white-space: nowrap; }
 }
+
+/* The panel itself receives focus when opened; no outline needed on the container. */
+.drawer:focus { outline: none; }
+/* Don't let sections squash when the panel content is taller than the screen
+   (flex items shrink by default); the panel scrolls instead. */
+.drawer__body > * { flex-shrink: 0; }

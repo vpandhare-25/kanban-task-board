@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Label, Task, TaskPriority, TaskStatus, TeamMember } from '../types'
 import { Avatar } from './Avatar'
 import { LabelPill } from './LabelPill'
@@ -44,10 +44,22 @@ export function TaskDetailPanel({
   const [title, setTitle] = useState(task.title)
   const [description, setDescription] = useState(task.description ?? '')
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const panelRef = useRef<HTMLElement>(null)
 
-  // Escape closes the panel.
+  // Keyboard users: move focus into the panel when it opens, and give it back
+  // to whatever was focused before (usually the card) when it closes.
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const previous = document.activeElement as HTMLElement | null
+    panelRef.current?.focus()
+    return () => previous?.focus?.()
+  }, [])
+
+  // Escape closes the panel, unless a dialog (Team/Labels) is open on top of it:
+  // then Escape should only close that dialog.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !document.querySelector('.modal-backdrop')) onClose()
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
@@ -89,6 +101,8 @@ export function TaskDetailPanel({
   return (
     <div className="drawer-backdrop" onMouseDown={onClose}>
       <aside
+        ref={panelRef}
+        tabIndex={-1}
         className="drawer"
         role="dialog"
         aria-modal="true"
