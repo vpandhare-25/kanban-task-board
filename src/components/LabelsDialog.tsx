@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { Label, Task } from '../types'
+import { CloseIcon, TrashIcon } from './icons'
 import { MEMBER_COLORS, STARTER_LABELS } from '../types'
 import { LabelPill } from './LabelPill'
 
@@ -68,13 +69,15 @@ export function LabelsDialog({ labels, tasks, onAdd, onRemove, onClose }: Props)
       >
         <div className="modal__titlebar">
           <h2 id="labels-heading" className="modal__heading">Labels</h2>
-          <button className="icon-btn" onClick={onClose} aria-label="Close">×</button>
+          <button className="icon-btn" onClick={onClose} aria-label="Close">
+            <CloseIcon />
+          </button>
         </div>
 
         {labels.length === 0 ? (
           <div className="team-empty">
             <p>Labels help you group work, like “Bug” or “Design”. Start with a few common ones?</p>
-            <button className="btn btn--ghost btn--sm starter-btn" onClick={addStarters} disabled={saving}>
+            <button className="btn btn--outline btn--sm" onClick={addStarters} disabled={saving}>
               Add {STARTER_LABELS.map((s) => s.name).join(', ')}
             </button>
           </div>
@@ -87,7 +90,7 @@ export function LabelsDialog({ labels, tasks, onAdd, onRemove, onClose }: Props)
                   <LabelPill label={l} />
                   <span className="team-list__name" />
                   {confirmId === l.id ? (
-                    <span className="confirm confirm--inline">
+                    <span className="confirm">
                       <span>{count > 0 ? `Remove from ${count} task${count > 1 ? 's' : ''}?` : 'Delete?'}</span>
                       <button className="btn btn--ghost btn--sm" onClick={() => setConfirmId(null)}>Cancel</button>
                       <button
@@ -106,12 +109,12 @@ export function LabelsDialog({ labels, tasks, onAdd, onRemove, onClose }: Props)
                         {count} {count === 1 ? 'task' : 'tasks'}
                       </span>
                       <button
-                        className="icon-btn"
+                        className="icon-btn icon-btn--sm"
                         onClick={() => setConfirmId(l.id)}
                         aria-label={`Delete label ${l.name}`}
                         title="Delete"
                       >
-                        ×
+                        <TrashIcon size={13} />
                       </button>
                     </>
                   )}
@@ -132,6 +135,7 @@ export function LabelsDialog({ labels, tasks, onAdd, onRemove, onClose }: Props)
             aria-label="New label name"
           />
           {nameTaken && <p className="field-hint">A label with this name already exists.</p>}
+          <div className="team-add__row">
           <div className="swatches" role="radiogroup" aria-label="Label color">
             {MEMBER_COLORS.map((c) => (
               <button
@@ -146,9 +150,10 @@ export function LabelsDialog({ labels, tasks, onAdd, onRemove, onClose }: Props)
               />
             ))}
           </div>
-          <button type="submit" className="btn btn--primary" disabled={!name.trim() || nameTaken || saving}>
+          <button type="submit" className="btn btn--primary btn--sm" disabled={!name.trim() || nameTaken || saving}>
             {saving ? 'Adding…' : 'Add label'}
           </button>
+          </div>
         </form>
       </div>
     </div>

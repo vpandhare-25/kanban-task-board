@@ -4,6 +4,7 @@ import type { ActivityEntry, Comment, TaskStatus } from '../types'
 import { COLUMNS, PRIORITY_LABEL } from '../types'
 import { useTaskFeed } from '../hooks/useTaskFeed'
 import { fullDateTime, shortDate, timeAgo } from '../lib/dates'
+import { CloseIcon } from './icons'
 
 interface Props {
   taskId: string
@@ -74,7 +75,7 @@ export function TaskFeed({ taskId, refreshKey, onCommentCountChange }: Props) {
 
   return (
     <section className="drawer__section">
-      <h3 className="drawer__label">Activity</h3>
+      <h3 className="section-label">Activity</h3>
 
       {loading ? (
         <div className="feed-skeleton" aria-busy="true" aria-label="Loading activity">
@@ -102,12 +103,12 @@ export function TaskFeed({ taskId, refreshKey, onCommentCountChange }: Props) {
                       {timeAgo(item.created_at)}
                     </time>
                     <button
-                      className="icon-btn comment__delete"
+                      className="icon-btn icon-btn--sm comment__delete"
                       onClick={() => remove(item.comment)}
                       aria-label="Delete comment"
                       title="Delete comment"
                     >
-                      ×
+                      <CloseIcon size={12} />
                     </button>
                   </div>
                   <p className="comment__body">{item.comment.body}</p>
@@ -132,7 +133,7 @@ export function TaskFeed({ taskId, refreshKey, onCommentCountChange }: Props) {
           aria-label="Write a comment"
         />
         <div className="composer__row">
-          <span className="composer__hint">⌘/Ctrl + Enter to send</span>
+          <span className="composer__hint"><kbd className="kbd">⌘</kbd> <kbd className="kbd">↵</kbd> to send</span>
           <button type="submit" className="btn btn--primary btn--sm" disabled={!draft.trim() || posting}>
             {posting ? 'Posting…' : 'Comment'}
           </button>

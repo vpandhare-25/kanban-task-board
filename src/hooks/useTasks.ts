@@ -84,8 +84,9 @@ export function useTasks(userId: string) {
     load()
   }, [load, userId])
 
-  const createTask = useCallback(async (input: NewTask) => {
-    if (!supabase) return false
+  /** Creates a task and returns it (or null on failure), so callers can attach assignees/labels. */
+  const createTask = useCallback(async (input: NewTask): Promise<Task | null> => {
+    if (!supabase) return null
     const { data, error } = await supabase
       .from('tasks')
       .insert({
@@ -99,10 +100,11 @@ export function useTasks(userId: string) {
       .single()
     if (error) {
       setActionError(friendlyError("Couldn't create task", error.message))
-      return false
+      return null
     }
-    setTasks((prev) => [fromRow(data as TaskRow), ...prev])
-    return true
+    const task = fromRow(data as TaskRow)
+    setTasks((prev) => [task, ...prev])
+    return task
   }, [])
 
   /**

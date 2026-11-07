@@ -1,10 +1,10 @@
 import { useDraggable } from '@dnd-kit/core'
-import { CSS } from '@dnd-kit/utilities'
 import type { BoardLookups, Label, Task, TeamMember } from '../types'
+import { PRIORITY_LABEL } from '../types'
 import { AvatarStack } from './Avatar'
 import { LabelPill } from './LabelPill'
-import { PRIORITY_LABEL } from '../types'
-import { dueLabel, dueState } from '../lib/dates'
+import { CalendarIcon, CommentIcon, PriorityIcon } from './icons'
+import { dueLabel, dueState, shortDate } from '../lib/dates'
 
 interface Props {
   task: Task
@@ -13,7 +13,11 @@ interface Props {
   overlay?: boolean
 }
 
-/** Visual card only: used both on the board and as the drag overlay. */
+/**
+ * The card itself (used on the board and as the drag preview).
+ * Hierarchy: labels → title → description → one quiet row of metadata.
+ * Priority and due date are small icons + text, not big colored badges.
+ */
 export function TaskCardView({ task, lookups, overlay }: Props) {
   // Turn ids into objects; ids whose member/label was just deleted are skipped.
   const assignees = task.assignee_ids
@@ -22,55 +26,57 @@ export function TaskCardView({ task, lookups, overlay }: Props) {
   const labels = task.label_ids
     .map((id) => lookups.labelsById.get(id))
     .filter((l): l is Label => Boolean(l))
-  const due = task.due_date && task.status !== 'done' ? dueState(task.due_date) : null
+
+  const isDone = task.status === 'done'
+  const due = task.due_date && !isDone ? dueState(task.due_date) : null
+  const showPriority = task.priority !== 'normal' // "normal" is the default, so hide it to reduce noise
+  const hasMeta = showPriority || task.due_date || task.comment_count > 0 || assignees.length > 0
 
   return (
-    <article className={`card${overlay ? ' card--overlay' : ''}`}>
+    <article className={`card${overlay ? ' card--overlay' : ''}${isDone ? ' card--done' : ''}`}>
       {labels.length > 0 && (
-        <div className="card__labels">
+        <div className="card__tags">
           {labels.map((l) => (
             <LabelPill key={l.id} label={l} />
           ))}
         </div>
       )}
+
       <h3 className="card__title">{task.title}</h3>
       {task.description && <p className="card__desc">{task.description}</p>}
 
-      {(task.priority !== 'normal' || task.due_date || assignees.length > 0 || task.comment_count > 0) && (
+      {hasMeta && (
         <div className="card__meta">
-          {task.priority !== 'normal' && (
-            <span className={`badge badge--${task.priority}`}>
-              <PriorityIcon level={task.priority} />
-              {PRIORITY_LABEL[task.priority]}
+          {showPriority && (
+            <span className="meta" title={`${PRIORITY_LABEL[task.priority]} priority`}>
+              <PriorityIcon priority={task.priority} size={13} />
+              <span className="sr-only">{PRIORITY_LABEL[task.priority]} priority</span>
             </span>
           )}
           {task.due_date && (
-            <span className={`badge badge--due${due ? ` badge--${due}` : ''}`}>
-              <CalendarIcon />
-              {task.status === 'done' ? dueLabelPlain(task.due_date) : dueLabel(task.due_date)}
+            <span
+              className={`meta${due === 'overdue' ? ' meta--overdue' : due === 'today' || due === 'soon' ? ' meta--soon' : ''}`}
+              title={`Due ${shortDate(task.due_date)}`}
+            >
+              <CalendarIcon size={12} />
+              {due && due !== 'later' ? dueLabel(task.due_date) : shortDate(task.due_date)}
             </span>
           )}
           {task.comment_count > 0 && (
-            <span className="card__comments" title={`${task.comment_count} comment${task.comment_count > 1 ? 's' : ''}`}>
-              <CommentIcon />
+            <span className="meta" title={`${task.comment_count} comment${task.comment_count > 1 ? 's' : ''}`}>
+              <CommentIcon size={12} />
               {task.comment_count}
             </span>
           )}
           {assignees.length > 0 && (
-            <span className="card__assignees">
-              <AvatarStack members={assignees} />
+            <span className="card__avatars">
+              <AvatarStack members={assignees} size={20} />
             </span>
           )}
         </div>
       )}
     </article>
   )
-}
-
-// Completed tasks just show the date, without "overdue" warnings.
-function dueLabelPlain(ymd: string) {
-  const [y, m, d] = ymd.split('-').map(Number)
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
 /**
@@ -88,7 +94,9 @@ export function TaskCard({
   onOpen: (task: Task) => void
   lookups: BoardLookups
 }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  // No transform here: the DragOverlay draws the moving copy, and this card
+  // stays in place as a dashed placeholder showing where it came from.
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: task.id,
     data: { task },
   })
@@ -97,7 +105,6 @@ export function TaskCard({
     <div
       ref={setNodeRef}
       className={`card-slot${isDragging ? ' card-slot--dragging' : ''}`}
-      style={{ transform: CSS.Translate.toString(transform) }}
       aria-label={`Task: ${task.title}. Press Enter to open, Space to move.`}
       {...listeners}
       {...attributes}
@@ -109,48 +116,5 @@ export function TaskCard({
     >
       <TaskCardView task={task} lookups={lookups} />
     </div>
-  )
-}
-
-function PriorityIcon({ level }: { level: Task['priority'] }) {
-  // Three bars, filled according to priority (like Linear's priority icon).
-  const filled = level === 'high' ? 3 : level === 'normal' ? 2 : 1
-  return (
-    <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-      {[0, 1, 2].map((i) => (
-        <rect
-          key={i}
-          x={1 + i * 4}
-          y={8 - i * 3}
-          width="2.5"
-          height={3 + i * 3}
-          rx="1"
-          fill="currentColor"
-          opacity={i < filled ? 1 : 0.3}
-        />
-      ))}
-    </svg>
-  )
-}
-
-function CommentIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path
-        d="M3 3.5h10a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H7l-3 2.5v-2.5H3a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1Z"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function CalendarIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <rect x="2" y="3" width="12" height="11" rx="2" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
   )
 }

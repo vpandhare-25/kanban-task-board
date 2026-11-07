@@ -5,6 +5,7 @@ import {
   KeyboardSensor,
   PointerSensor,
   TouchSensor,
+  useDroppable,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
@@ -12,19 +13,23 @@ import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import type { BoardLookups, Label, Task, TaskStatus, TeamMember } from '../types'
 import { COLUMNS } from '../types'
 import { useTasks } from '../hooks/useTasks'
+import { useLabels, useTeam } from '../hooks/useNamedList'
+import { useMediaQuery } from '../hooks/useMediaQuery'
+import { useTheme } from '../hooks/useTheme'
+import type { Filters } from '../lib/filters'
+import { EMPTY_FILTERS, isFiltering, matchesFilters } from '../lib/filters'
 import { Column } from './Column'
 import { TaskCardView } from './TaskCard'
 import { NewTaskModal } from './NewTaskModal'
+import type { NewTaskInput } from './NewTaskModal'
 import { StatusScreen } from './StatusScreen'
 import { TaskDetailPanel } from './TaskDetailPanel'
 import { TeamDialog } from './TeamDialog'
-import { AvatarStack } from './Avatar'
-import { useLabels, useTeam } from '../hooks/useNamedList'
 import { LabelsDialog } from './LabelsDialog'
 import { FilterBar } from './FilterBar'
 import { BoardStats } from './BoardStats'
-import type { Filters } from '../lib/filters'
-import { EMPTY_FILTERS, isFiltering, matchesFilters } from '../lib/filters'
+import { AvatarStack } from './Avatar'
+import { BoardMark, CloseIcon, MoonIcon, PlusIcon, StatusIcon, SunIcon, UserIcon } from './icons'
 
 export function Board({ userId }: { userId: string }) {
   const {
@@ -44,13 +49,18 @@ export function Board({ userId }: { userId: string }) {
     saveCount,
     adjustCommentCount,
   } = useTasks(userId)
-  // Team errors show in the same toast as task errors.
+  // Team and label errors show in the same toast as task errors.
   const { members, addMember, removeMember } = useTeam(userId, setActionError)
   const { labels, addLabel, removeLabel } = useLabels(userId, setActionError)
+  const { theme, toggle: toggleTheme } = useTheme()
   const [teamOpen, setTeamOpen] = useState(false)
   const [labelsOpen, setLabelsOpen] = useState(false)
 
-  // Quick id -> object lookups for drawing avatars and label pills on cards.
+  // Phones show one column at a time with status tabs (see MobileTabs below).
+  const isMobile = useMediaQuery('(max-width: 640px)')
+  const [mobileStatus, setMobileStatus] = useState<TaskStatus>('todo')
+
+  // Quick id -> object lookups for drawing avatars and labels on cards.
   const lookups: BoardLookups = useMemo(
     () => ({
       membersById: new Map(members.map((m) => [m.id, m])),
@@ -69,6 +79,16 @@ export function Board({ userId }: { userId: string }) {
     const ok = await removeLabel(label)
     if (ok) forgetLink('label_ids', label.id)
     return ok
+  }
+
+  /** Create the task, then attach any assignees/labels picked in the composer. */
+  async function handleCreate(input: NewTaskInput) {
+    const task = await createTask(input)
+    if (!task) return false
+    if (input.assignee_ids.length) await setLinks(task, 'assignee_ids', input.assignee_ids)
+    if (input.label_ids.length) await setLinks({ ...task, assignee_ids: input.assignee_ids }, 'label_ids', input.label_ids)
+    if (isMobile) setMobileStatus(input.status) // show the tab the new task landed in
+    return true
   }
 
   const [activeTask, setActiveTask] = useState<Task | null>(null)
@@ -112,6 +132,21 @@ export function Board({ userId }: { userId: string }) {
     return () => clearTimeout(id)
   }, [actionError, clearActionError])
 
+  // Press "C" (outside a text field, with nothing open) to create a task, like Linear.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement
+      const typing = el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable
+      const somethingOpen = document.querySelector('.modal-backdrop, .drawer-backdrop, .menu__pop')
+      if (e.key.toLowerCase() === 'c' && !typing && !somethingOpen && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault()
+        setModalStatus(isMobile ? mobileStatus : 'todo')
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isMobile, mobileStatus])
+
   function handleDragStart(e: DragStartEvent) {
     setActiveTask((e.active.data.current?.task as Task) ?? null)
   }
@@ -119,29 +154,48 @@ export function Board({ userId }: { userId: string }) {
   function handleDragEnd(e: DragEndEvent) {
     setActiveTask(null)
     const task = e.active.data.current?.task as Task | undefined
-    const target = e.over?.id as TaskStatus | undefined
-    if (task && target) moveTask(task, target)
+    if (!task || !e.over) return
+    // Drop targets are columns ("todo") or, on phones, status tabs ("tab:todo").
+    const target = String(e.over.id).replace('tab:', '') as TaskStatus
+    moveTask(task, target)
   }
+
+  const visibleColumns = isMobile ? COLUMNS.filter((c) => c.id === mobileStatus) : COLUMNS
 
   return (
     <div className="app">
-      <header className="topbar">
-        <div className="topbar__brand">
-          <span className="logo" aria-hidden="true">▦</span>
-          <h1 className="topbar__title">My Board</h1>
+      <header className="header">
+        <div className="header__brand">
+          <span className="board-mark" aria-hidden="true">
+            <BoardMark size={15} />
+          </span>
+          <h1 className="header__title">Task Board</h1>
+          <p className="header__desc">Plan, track and ship your work</p>
         </div>
-        {!loading && !loadError && <BoardStats tasks={tasks} />}
-        <div className="topbar__actions">
+
+        <div className="header__actions">
+          <button
+            className="icon-btn"
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            title={theme === 'dark' ? 'Light theme' : 'Dark theme'}
+          >
+            {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+          </button>
           <button className="team-btn" onClick={() => setTeamOpen(true)} title="Manage team">
             {members.length > 0 ? (
-              <AvatarStack members={members} max={4} size={26} label={`Team: ${members.map((m) => m.name).join(', ')}`} />
+              <AvatarStack members={members} max={3} size={22} label={`Team: ${members.map((m) => m.name).join(', ')}`} />
             ) : (
-              <span className="team-btn__icon" aria-hidden="true">+</span>
+              <span className="team-btn__empty" aria-hidden="true">
+                <UserIcon size={12} />
+              </span>
             )}
             <span className="team-btn__label">Team</span>
           </button>
-          <button className="btn btn--primary" onClick={() => setModalStatus('todo')}>
-            <span aria-hidden="true">+</span> New task
+          <button className="btn btn--primary" onClick={() => setModalStatus(isMobile ? mobileStatus : 'todo')} title="New task (C)">
+            <PlusIcon size={13} />
+            New task
+            <kbd className="kbd" aria-hidden="true">C</kbd>
           </button>
         </div>
       </header>
@@ -169,9 +223,14 @@ export function Board({ userId }: { userId: string }) {
             labels={labels}
             shown={visibleTasks.length}
             total={tasks.length}
-          />
+          >
+            <BoardStats tasks={tasks} />
+          </FilterBar>
+
+          {isMobile && <MobileTabs active={mobileStatus} onChange={setMobileStatus} counts={byStatus} />}
+
           <main className="board">
-            {COLUMNS.map((col) => (
+            {visibleColumns.map((col) => (
               <Column
                 key={col.id}
                 id={col.id}
@@ -184,8 +243,9 @@ export function Board({ userId }: { userId: string }) {
               />
             ))}
           </main>
+
           {/* The floating card that follows the pointer while dragging. */}
-          <DragOverlay dropAnimation={{ duration: 180, easing: 'cubic-bezier(0.2, 0, 0, 1)' }}>
+          <DragOverlay dropAnimation={{ duration: 160, easing: 'cubic-bezier(0.2, 0, 0, 1)' }}>
             {activeTask ? <TaskCardView task={activeTask} lookups={lookups} overlay /> : null}
           </DragOverlay>
         </DndContext>
@@ -194,8 +254,10 @@ export function Board({ userId }: { userId: string }) {
       {modalStatus && (
         <NewTaskModal
           initialStatus={modalStatus}
+          members={members}
+          labels={labels}
           onClose={() => setModalStatus(null)}
-          onCreate={createTask}
+          onCreate={handleCreate}
         />
       )}
 
@@ -239,30 +301,86 @@ export function Board({ userId }: { userId: string }) {
       {actionError && (
         <div className="toast" role="alert">
           <span>{actionError}</span>
-          <button className="icon-btn" onClick={clearActionError} aria-label="Dismiss">×</button>
+          <button className="icon-btn icon-btn--sm" onClick={clearActionError} aria-label="Dismiss">
+            <CloseIcon size={12} />
+          </button>
         </div>
       )}
     </div>
   )
 }
 
-/** Grey placeholder columns shown while tasks load. */
+/**
+ * Phone layout: one tab per status instead of four squeezed columns.
+ * Each tab is also a drop target, so a card can be dragged onto another status.
+ */
+function MobileTabs({
+  active,
+  onChange,
+  counts,
+}: {
+  active: TaskStatus
+  onChange: (s: TaskStatus) => void
+  counts: Record<TaskStatus, Task[]>
+}) {
+  return (
+    <div className="tabs" role="tablist" aria-label="Status">
+      {COLUMNS.map((c) => (
+        <MobileTab key={c.id} id={c.id} label={c.label} count={counts[c.id].length} active={active === c.id} onSelect={onChange} />
+      ))}
+    </div>
+  )
+}
+
+function MobileTab({
+  id,
+  label,
+  count,
+  active,
+  onSelect,
+}: {
+  id: TaskStatus
+  label: string
+  count: number
+  active: boolean
+  onSelect: (s: TaskStatus) => void
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: `tab:${id}` })
+  return (
+    <button
+      ref={setNodeRef}
+      role="tab"
+      aria-selected={active}
+      className={`tab${active ? ' tab--active' : ''}${isOver ? ' tab--over' : ''}`}
+      onClick={() => onSelect(id)}
+    >
+      <StatusIcon status={id} size={13} />
+      {label}
+      <span className="tab__count">{count}</span>
+    </button>
+  )
+}
+
+/** Placeholder layout shown while tasks load: same shapes as the real board. */
 function BoardSkeleton() {
   return (
-    <main className="board" aria-busy="true" aria-label="Loading tasks">
-      {COLUMNS.map((col, i) => (
-        <section key={col.id} className={`column column--${col.id}`}>
-          <header className="column__header">
-            <span className="column__dot" aria-hidden="true" />
-            <h2 className="column__title">{col.label}</h2>
-          </header>
-          <div className="column__body">
-            {Array.from({ length: 3 - (i % 2) }).map((_, j) => (
-              <div key={j} className="skeleton-card" />
-            ))}
-          </div>
-        </section>
-      ))}
-    </main>
+    <>
+      <div className="toolbar" aria-hidden="true" />
+      <main className="board" aria-busy="true" aria-label="Loading tasks">
+        {COLUMNS.map((col, i) => (
+          <section key={col.id} className={`column column--${col.id}`}>
+            <header className="column__header">
+              <StatusIcon status={col.id} />
+              <h2 className="column__title">{col.label}</h2>
+            </header>
+            <div className="column__body">
+              {Array.from({ length: 3 - (i % 2) }).map((_, j) => (
+                <div key={j} className="skeleton-card" />
+              ))}
+            </div>
+          </section>
+        ))}
+      </main>
+    </>
   )
 }

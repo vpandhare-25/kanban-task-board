@@ -1,13 +1,10 @@
 import type { Label } from '../types'
 
-/**
- * Small colored tag. The label color is used for the dot and a light tint
- * behind the text, so any color stays readable in light and dark mode.
- */
+/** A label shown as a small outlined tag with a colored dot. */
 export function LabelPill({ label }: { label: Label }) {
   return (
-    <span className="label-pill" style={{ ['--label' as string]: label.color }}>
-      <span className="label-pill__dot" aria-hidden="true" />
+    <span className="tag">
+      <span className="tag__dot" style={{ background: label.color }} aria-hidden="true" />
       {label.name}
     </span>
   )

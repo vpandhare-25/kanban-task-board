@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { Task, TeamMember } from '../types'
+import { CloseIcon, TrashIcon } from './icons'
 import { MEMBER_COLORS } from '../types'
 import { Avatar } from './Avatar'
 
@@ -58,7 +59,9 @@ export function TeamDialog({ members, tasks, onAdd, onRemove, onClose }: Props) 
       >
         <div className="modal__titlebar">
           <h2 id="team-heading" className="modal__heading">Team</h2>
-          <button className="icon-btn" onClick={onClose} aria-label="Close">×</button>
+          <button className="icon-btn" onClick={onClose} aria-label="Close">
+            <CloseIcon />
+          </button>
         </div>
 
         {members.length === 0 ? (
@@ -74,7 +77,7 @@ export function TeamDialog({ members, tasks, onAdd, onRemove, onClose }: Props) 
                   <Avatar member={m} size={28} />
                   <span className="team-list__name">{m.name}</span>
                   {confirmId === m.id ? (
-                    <span className="confirm confirm--inline">
+                    <span className="confirm">
                       <span>{count > 0 ? `Unassign from ${count} task${count > 1 ? 's' : ''}?` : 'Remove?'}</span>
                       <button className="btn btn--ghost btn--sm" onClick={() => setConfirmId(null)}>Cancel</button>
                       <button
@@ -93,12 +96,12 @@ export function TeamDialog({ members, tasks, onAdd, onRemove, onClose }: Props) 
                         {count} {count === 1 ? 'task' : 'tasks'}
                       </span>
                       <button
-                        className="icon-btn"
+                        className="icon-btn icon-btn--sm"
                         onClick={() => setConfirmId(m.id)}
                         aria-label={`Remove ${m.name}`}
                         title="Remove"
                       >
-                        ×
+                        <TrashIcon size={13} />
                       </button>
                     </>
                   )}
@@ -118,6 +121,7 @@ export function TeamDialog({ members, tasks, onAdd, onRemove, onClose }: Props) 
             maxLength={40}
             aria-label="New member name"
           />
+          <div className="team-add__row">
           <div className="swatches" role="radiogroup" aria-label="Avatar color">
             {MEMBER_COLORS.map((c) => (
               <button
@@ -132,9 +136,10 @@ export function TeamDialog({ members, tasks, onAdd, onRemove, onClose }: Props) 
               />
             ))}
           </div>
-          <button type="submit" className="btn btn--primary" disabled={!name.trim() || saving}>
+          <button type="submit" className="btn btn--primary btn--sm" disabled={!name.trim() || saving}>
             {saving ? 'Adding…' : 'Add member'}
           </button>
+          </div>
         </form>
       </div>
     </div>

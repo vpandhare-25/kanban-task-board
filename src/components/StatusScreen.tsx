@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { AlertIcon, BoardMark } from './icons'
 
 interface Props {
   tone: 'loading' | 'error' | 'info'
@@ -11,13 +12,19 @@ interface Props {
 export function StatusScreen({ tone, title, message, action }: Props) {
   return (
     <div className={`status status--${tone}`} role={tone === 'error' ? 'alert' : 'status'}>
-      {tone === 'loading' ? <div className="spinner" aria-hidden="true" /> : (
-        <div className="status__icon" aria-hidden="true">{tone === 'error' ? '!' : 'i'}</div>
+      {tone === 'loading' ? (
+        <div className="spinner" aria-hidden="true" />
+      ) : (
+        <div className="status__icon" aria-hidden="true">
+          {tone === 'error' ? <AlertIcon /> : <BoardMark />}
+        </div>
       )}
       <h2 className="status__title">{title}</h2>
       {message && <div className="status__message">{message}</div>}
       {action && (
-        <button className="btn btn--primary" onClick={action.onClick}>{action.label}</button>
+        <button className="btn btn--outline" onClick={action.onClick}>
+          {action.label}
+        </button>
       )}
     </div>
   )
