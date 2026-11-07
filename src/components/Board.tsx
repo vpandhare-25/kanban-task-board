@@ -22,6 +22,7 @@ import { AvatarStack } from './Avatar'
 import { useLabels, useTeam } from '../hooks/useNamedList'
 import { LabelsDialog } from './LabelsDialog'
 import { FilterBar } from './FilterBar'
+import { BoardStats } from './BoardStats'
 import type { Filters } from '../lib/filters'
 import { EMPTY_FILTERS, isFiltering, matchesFilters } from '../lib/filters'
 
@@ -122,22 +123,14 @@ export function Board({ userId }: { userId: string }) {
     if (task && target) moveTask(task, target)
   }
 
-  const doneCount = tasks.filter((t) => t.status === 'done').length
-
   return (
     <div className="app">
       <header className="topbar">
         <div className="topbar__brand">
           <span className="logo" aria-hidden="true">▦</span>
-          <div>
-            <h1 className="topbar__title">My Board</h1>
-            {!loading && !loadError && (
-              <p className="topbar__subtitle">
-                {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'} · {doneCount} done
-              </p>
-            )}
-          </div>
+          <h1 className="topbar__title">My Board</h1>
         </div>
+        {!loading && !loadError && <BoardStats tasks={tasks} />}
         <div className="topbar__actions">
           <button className="team-btn" onClick={() => setTeamOpen(true)} title="Manage team">
             {members.length > 0 ? (
