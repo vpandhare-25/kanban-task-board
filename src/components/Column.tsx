@@ -9,6 +9,8 @@ interface Props {
   onAdd: (status: TaskStatus) => void
   onOpen: (task: Task) => void
   lookups: BoardLookups
+  /** True when search/filters are active, so empty columns say "no matches" instead. */
+  filtering: boolean
 }
 
 const EMPTY_TEXT: Record<TaskStatus, string> = {
@@ -18,7 +20,7 @@ const EMPTY_TEXT: Record<TaskStatus, string> = {
   done: 'Finished work lands here.',
 }
 
-export function Column({ id, label, tasks, onAdd, onOpen, lookups }: Props) {
+export function Column({ id, label, tasks, onAdd, onOpen, lookups, filtering }: Props) {
   // Each column is a drop zone. Its id is the status a task gets when dropped here.
   const { setNodeRef, isOver } = useDroppable({ id })
 
@@ -40,7 +42,7 @@ export function Column({ id, label, tasks, onAdd, onOpen, lookups }: Props) {
 
       <div ref={setNodeRef} className="column__body">
         {tasks.length === 0 ? (
-          <div className="column__empty">{EMPTY_TEXT[id]}</div>
+          <div className="column__empty">{filtering ? 'No matching tasks' : EMPTY_TEXT[id]}</div>
         ) : (
           tasks.map((task) => <TaskCard key={task.id} task={task} onOpen={onOpen} lookups={lookups} />)
         )}

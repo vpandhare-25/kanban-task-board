@@ -21,6 +21,9 @@ import { TeamDialog } from './TeamDialog'
 import { AvatarStack } from './Avatar'
 import { useLabels, useTeam } from '../hooks/useNamedList'
 import { LabelsDialog } from './LabelsDialog'
+import { FilterBar } from './FilterBar'
+import type { Filters } from '../lib/filters'
+import { EMPTY_FILTERS, isFiltering, matchesFilters } from '../lib/filters'
 
 export function Board({ userId }: { userId: string }) {
   const {
@@ -83,12 +86,21 @@ export function Board({ userId }: { userId: string }) {
     useSensor(KeyboardSensor),
   )
 
+  // Search and filters. All tasks are already in memory, so filtering
+  // happens instantly in the browser with no extra database requests.
+  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
+  const filtering = isFiltering(filters)
+  const visibleTasks = useMemo(
+    () => (filtering ? tasks.filter((t) => matchesFilters(t, filters)) : tasks),
+    [tasks, filters, filtering],
+  )
+
   // Group tasks by column once per change instead of filtering in every column.
   const byStatus = useMemo(() => {
     const groups: Record<TaskStatus, Task[]> = { todo: [], in_progress: [], in_review: [], done: [] }
-    for (const t of tasks) groups[t.status].push(t)
+    for (const t of visibleTasks) groups[t.status].push(t)
     return groups
-  }, [tasks])
+  }, [visibleTasks])
 
   // Hide the error toast automatically after a few seconds.
   useEffect(() => {
@@ -108,7 +120,7 @@ export function Board({ userId }: { userId: string }) {
     if (task && target) moveTask(task, target)
   }
 
-  const doneCount = byStatus.done.length
+  const doneCount = tasks.filter((t) => t.status === 'done').length
 
   return (
     <div className="app">
@@ -155,6 +167,14 @@ export function Board({ userId }: { userId: string }) {
           onDragEnd={handleDragEnd}
           onDragCancel={() => setActiveTask(null)}
         >
+          <FilterBar
+            filters={filters}
+            onChange={setFilters}
+            members={members}
+            labels={labels}
+            shown={visibleTasks.length}
+            total={tasks.length}
+          />
           <main className="board">
             {COLUMNS.map((col) => (
               <Column
@@ -165,6 +185,7 @@ export function Board({ userId }: { userId: string }) {
                 onAdd={setModalStatus}
                 onOpen={(t) => setOpenTaskId(t.id)}
                 lookups={lookups}
+                filtering={filtering}
               />
             ))}
           </main>
