@@ -16,6 +16,27 @@ export interface Task {
   assignee_ids: string[]
   /** Ids of attached labels, from the task_labels table. */
   label_ids: string[]
+  /** Number of comments, counted by the database in the same request. */
+  comment_count: number
+}
+
+export interface Comment {
+  id: string
+  task_id: string
+  body: string
+  user_id: string
+  created_at: string
+}
+
+/** One entry in a task's history. Written by database triggers only. */
+export interface ActivityEntry {
+  id: string
+  task_id: string
+  action: 'created' | 'updated' | 'assigned' | 'unassigned' | 'labeled' | 'unlabeled'
+  field: 'status' | 'title' | 'priority' | 'due_date' | 'description' | null
+  old_value: string | null
+  new_value: string | null
+  created_at: string
 }
 
 /** A custom tag like "Bug" or "Design". */

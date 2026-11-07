@@ -36,7 +36,7 @@ export function TaskCardView({ task, lookups, overlay }: Props) {
       <h3 className="card__title">{task.title}</h3>
       {task.description && <p className="card__desc">{task.description}</p>}
 
-      {(task.priority !== 'normal' || task.due_date || assignees.length > 0) && (
+      {(task.priority !== 'normal' || task.due_date || assignees.length > 0 || task.comment_count > 0) && (
         <div className="card__meta">
           {task.priority !== 'normal' && (
             <span className={`badge badge--${task.priority}`}>
@@ -48,6 +48,12 @@ export function TaskCardView({ task, lookups, overlay }: Props) {
             <span className={`badge badge--due${due ? ` badge--${due}` : ''}`}>
               <CalendarIcon />
               {task.status === 'done' ? dueLabelPlain(task.due_date) : dueLabel(task.due_date)}
+            </span>
+          )}
+          {task.comment_count > 0 && (
+            <span className="card__comments" title={`${task.comment_count} comment${task.comment_count > 1 ? 's' : ''}`}>
+              <CommentIcon />
+              {task.comment_count}
             </span>
           )}
           {assignees.length > 0 && (
@@ -123,6 +129,19 @@ function PriorityIcon({ level }: { level: Task['priority'] }) {
           opacity={i < filled ? 1 : 0.3}
         />
       ))}
+    </svg>
+  )
+}
+
+function CommentIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        d="M3 3.5h10a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H7l-3 2.5v-2.5H3a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1Z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
     </svg>
   )
 }

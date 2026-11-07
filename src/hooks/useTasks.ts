@@ -20,17 +20,20 @@ export type LinkField = keyof typeof LINKS
  * `task_assignees(member_id)` follows the foreign key and returns
  * [{ member_id }, ...] for each task. We flatten those to plain id lists.
  */
-const TASK_SELECT = '*, task_assignees(member_id), task_labels(label_id)'
-type TaskRow = Omit<Task, LinkField> & {
+// comments(count) asks Postgres to count each task's comments: [{ count: 3 }]
+const TASK_SELECT = '*, task_assignees(member_id), task_labels(label_id), comments(count)'
+type TaskRow = Omit<Task, LinkField | 'comment_count'> & {
+  comments?: { count: number }[]
   task_assignees?: { member_id: string }[]
   task_labels?: { label_id: string }[]
 }
 
-function fromRow({ task_assignees, task_labels, ...task }: TaskRow): Task {
+function fromRow({ task_assignees, task_labels, comments, ...task }: TaskRow): Task {
   return {
     ...task,
     assignee_ids: (task_assignees ?? []).map((a) => a.member_id),
     label_ids: (task_labels ?? []).map((l) => l.label_id),
+    comment_count: comments?.[0]?.count ?? 0,
   }
 }
 
@@ -60,6 +63,9 @@ export function useTasks(userId: string) {
   const [loadError, setLoadError] = useState<string | null>(null)
   // Short-lived message for failed saves (shown as a toast).
   const [actionError, setActionError] = useState<string | null>(null)
+  // Goes up by one after every successful save. The activity feed watches it
+  // to reload, because activity rows are written by the database, not by us.
+  const [saveCount, setSaveCount] = useState(0)
 
   const load = useCallback(async () => {
     if (!supabase) return
@@ -120,6 +126,7 @@ export function useTasks(userId: string) {
       setActionError(friendlyError("Couldn't save your change", error.message))
       return false
     }
+    setSaveCount((n) => n + 1)
     return true
   }, [])
 
@@ -173,6 +180,8 @@ export function useTasks(userId: string) {
       if (failed?.error) {
         setActionError(friendlyError(`Couldn't update ${noun}`, failed.error.message))
         load()
+      } else {
+        setSaveCount((n) => n + 1)
       }
     },
     [load],
@@ -185,6 +194,13 @@ export function useTasks(userId: string) {
   const forgetLink = useCallback((field: LinkField, id: string) => {
     setTasks((prev) =>
       prev.map((t) => (t[field].includes(id) ? { ...t, [field]: t[field].filter((x) => x !== id) } : t)),
+    )
+  }, [])
+
+  /** Keeps the comment count on cards in sync when comments are added/removed in the panel. */
+  const adjustCommentCount = useCallback((taskId: string, delta: number) => {
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, comment_count: Math.max(0, t.comment_count + delta) } : t)),
     )
   }, [])
 
@@ -205,5 +221,7 @@ export function useTasks(userId: string) {
     setLinks,
     forgetLink,
     setActionError,
+    saveCount,
+    adjustCommentCount,
   }
 }

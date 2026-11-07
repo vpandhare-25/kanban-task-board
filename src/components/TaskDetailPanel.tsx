@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Label, Task, TaskPriority, TaskStatus, TeamMember } from '../types'
 import { Avatar } from './Avatar'
 import { LabelPill } from './LabelPill'
+import { TaskFeed } from './TaskFeed'
 import type { LinkField } from '../hooks/useTasks'
 import { COLUMNS } from '../types'
 import type { TaskPatch } from '../hooks/useTasks'
@@ -17,6 +18,9 @@ interface Props {
   onSetLinks: (task: Task, field: LinkField, ids: string[]) => void
   onManageTeam: () => void
   onManageLabels: () => void
+  /** Changes after every save, so the activity feed knows to reload. */
+  saveCount: number
+  onCommentCountChange: (taskId: string, delta: number) => void
 }
 
 /**
@@ -34,6 +38,8 @@ export function TaskDetailPanel({
   onSetLinks,
   onManageTeam,
   onManageLabels,
+  saveCount,
+  onCommentCountChange,
 }: Props) {
   const [title, setTitle] = useState(task.title)
   const [description, setDescription] = useState(task.description ?? '')
@@ -222,6 +228,12 @@ export function TaskDetailPanel({
               rows={5}
             />
           </section>
+
+          <TaskFeed
+            taskId={task.id}
+            refreshKey={saveCount}
+            onCommentCountChange={(delta) => onCommentCountChange(task.id, delta)}
+          />
         </div>
 
         <footer className="drawer__footer">

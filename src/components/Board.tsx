@@ -40,6 +40,8 @@ export function Board({ userId }: { userId: string }) {
     setLinks,
     forgetLink,
     setActionError,
+    saveCount,
+    adjustCommentCount,
   } = useTasks(userId)
   // Team errors show in the same toast as task errors.
   const { members, addMember, removeMember } = useTeam(userId, setActionError)
@@ -216,6 +218,8 @@ export function Board({ userId }: { userId: string }) {
           onSetLinks={setLinks}
           onManageTeam={() => setTeamOpen(true)}
           onManageLabels={() => setLabelsOpen(true)}
+          saveCount={saveCount}
+          onCommentCountChange={adjustCommentCount}
         />
       )}
 

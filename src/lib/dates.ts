@@ -37,3 +37,27 @@ export function dueLabel(ymd: string): string {
   if (days === 1) return 'Due tomorrow'
   return parseLocalDate(ymd).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
+
+/** "just now", "5 minutes ago", "2 hours ago", "3 days ago", then a date. */
+export function timeAgo(iso: string): string {
+  const seconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000)
+  const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
+  if (seconds < 45) return 'just now'
+  if (seconds < 3600) return rtf.format(-Math.round(seconds / 60), 'minute')
+  if (seconds < 86400) return rtf.format(-Math.round(seconds / 3600), 'hour')
+  if (seconds < 7 * 86400) return rtf.format(-Math.round(seconds / 86400), 'day')
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+/** Full date + time for tooltips. */
+export function fullDateTime(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+  })
+}
+
+/** "2026-11-08" -> "Nov 8" */
+export function shortDate(ymd: string): string {
+  const [y, m, d] = ymd.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
